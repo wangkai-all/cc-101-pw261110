@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>异步导出采集台</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>异步导出采集台</h1>
+      <p class="sub">创建导出任务 · 轮询生成 · 领取链接 · 清单校验 · 确认入库</p>
+    </div>
+    <div class="health">
+      <span id="healthDot" class="dot dot-unknown"></span>
+      <span id="healthText">检测中…</span>
+      <span class="sep">|</span>
+      <span id="overviewText">-</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- 1. 创建导出 -->
+    <section class="card">
+      <h2>① 按业务日期创建导出</h2>
+      <div class="form-grid">
+        <label>业务日期
+          <input type="date" id="bizDate" />
+        </label>
+        <label>生成耗时（秒，模拟慢任务）
+          <input type="number" id="fTaskSeconds" value="12" min="1" max="600" />
+        </label>
+        <label>下载链接 TTL（秒，模拟过期）
+          <input type="number" id="fLinkTtl" value="15" min="1" max="3600" />
+        </label>
+        <label>下载中断次数
+          <input type="number" id="fInterrupts" value="1" min="0" max="10" />
+        </label>
+        <label>限流命中次数（429）
+          <input type="number" id="fRateHits" value="2" min="0" max="20" />
+        </label>
+        <label>Retry-After（秒）
+          <input type="number" id="fRetryAfter" value="3" min="1" max="120" />
+        </label>
+        <label>下载延迟（秒，配合短 TTL 制造过期）
+          <input type="number" id="fDownloadDelay" value="0" min="0" max="60" />
+        </label>
+      </div>
+      <div class="form-flags">
+        <label><input type="checkbox" id="fIncomplete" /> 内容不完整（清单与文件不符，校验失败并隔离）</label>
+        <label><input type="checkbox" id="fFail" /> 远端任务失败（FAILED）</label>
+      </div>
+      <div class="actions">
+        <button id="btnCreate" class="btn btn-primary">创建导出</button>
+        <span id="createMsg" class="msg"></span>
+      </div>
+      <p class="hint">同一业务日期重复点击只会返回当前唯一有效任务，不会重复建单；限流时按 Retry-After 等待，不新建任务。</p>
+    </section>
+
+    <!-- 2. 任务流水线 -->
+    <section class="card">
+      <h2>② 导出任务流水线</h2>
+      <div class="table-wrap">
+        <table id="taskTable">
+          <thead>
+            <tr>
+              <th>#</th><th>业务日期</th><th>阶段</th><th>状态</th><th>尝试</th>
+              <th>远端任务</th><th>链接到期</th><th>更新时间</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="taskBody">
+            <tr><td colspan="9" class="empty">暂无任务</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 3. 任务详情 -->
+    <section class="card hidden" id="detailCard">
+      <div class="detail-head">
+        <h2>③ 任务详情 <span id="detailTitle"></span></h2>
+        <button class="btn btn-ghost" id="btnCloseDetail">关闭</button>
+      </div>
+      <div id="pipelineStepper" class="stepper"></div>
+      <div id="failBanner" class="banner banner-fail hidden"></div>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="requests">实际请求</button>
+        <button class="tab" data-tab="files">文件记录</button>
+        <button class="tab" data-tab="events">事件时间线</button>
+      </div>
+      <div class="tab-panel" id="tab-requests"></div>
+      <div class="tab-panel hidden" id="tab-files"></div>
+      <div class="tab-panel hidden" id="tab-events"></div>
+    </section>
+
+    <!-- 4. 入库查询 -->
+    <section class="card">
+      <h2>④ 入库数据查询（仅校验通过的文件）</h2>
+      <div class="actions">
+        <input type="date" id="queryDate" />
+        <button class="btn" id="btnQuery">查询</button>
+        <button class="btn btn-ghost" id="btnQueryAll">全部</button>
+        <span id="queryMsg" class="msg"></span>
+      </div>
+      <div class="table-wrap">
+        <table id="dataTable">
+          <thead>
+            <tr><th>ID</th><th>任务</th><th>业务日期</th><th>行号</th><th>数据时间</th><th>指标</th><th>值</th><th>入库时间</th></tr>
+          </thead>
+          <tbody id="dataBody">
+            <tr><td colspan="8" class="empty">尚未查询</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    本地导出服务：<code>/api/export-tasks</code> 系列协议 · 采集服务状态持久化于 SQLite，重启后自动恢复轮询
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
